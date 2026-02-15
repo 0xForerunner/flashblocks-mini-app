@@ -36,7 +36,6 @@ type WalletRouteResponse = {
   address: `0x${string}` | null;
   balanceWei: string | null;
   balanceEth: string | null;
-  spoofMode: boolean;
   available: boolean;
 };
 
@@ -59,7 +58,7 @@ const LANE_META: Record<
 > = {
   flashblocks: {
     title: 'Flashblocks lane',
-    subtitle: 'Confirmation via block tag scan (pending/latest)',
+    subtitle: 'Pending block visibility before receipt finalization',
     cardClassName:
       'relative overflow-hidden border-cyan-200/80 bg-gradient-to-br from-cyan-50 via-sky-50 to-cyan-100/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_12px_30px_-24px_rgba(14,116,144,0.75)]',
     packetClassName: 'lane-packet-flashblocks',
@@ -161,8 +160,6 @@ export const ConfirmationRaceDemo = () => {
   const [fatalErrorMessage, setFatalErrorMessage] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState<`0x${string}` | null>(null);
   const [walletBalanceEth, setWalletBalanceEth] = useState<string | null>(null);
-  const [walletSnapshotAvailable, setWalletSnapshotAvailable] = useState(false);
-  const [walletSpoofMode, setWalletSpoofMode] = useState(false);
   const [walletSnapshotError, setWalletSnapshotError] = useState<string | null>(null);
 
   const runTokenRef = useRef(0);
@@ -294,8 +291,6 @@ export const ConfirmationRaceDemo = () => {
 
       setWalletAddress(payload.address);
       setWalletBalanceEth(payload.balanceEth);
-      setWalletSnapshotAvailable(payload.available);
-      setWalletSpoofMode(payload.spoofMode);
       setWalletSnapshotError(
         payload.available
           ? null
@@ -534,8 +529,9 @@ export const ConfirmationRaceDemo = () => {
           Flashblocks vs Normal Confirmation
         </h1>
         <p className="text-sm text-slate-600">
-          Both lanes run in parallel for up to 8 seconds with immediate retry on
-          send/check failures.
+          Flashblocks expose pending block contents before standard receipt
+          confirmation, so this compares early visibility vs normal receipt-based
+          confirmation.
         </p>
       </header>
 
@@ -620,19 +616,11 @@ export const ConfirmationRaceDemo = () => {
                 ) : null}
               </div>
 
-              <div className="grid grid-cols-2 gap-y-1 text-xs text-slate-700">
+              <div className="grid grid-cols-3 gap-y-1 text-xs text-slate-700">
                 <p>Sends: {state.sendsAttempted}</p>
                 <p>Confirms: {state.confirmationsObserved}</p>
-                <p>Latest: {formatLatency(state.latestLatencyMs)}</p>
                 <p>Average: {formatLatency(state.averageLatencyMs)}</p>
               </div>
-
-              <p className="mt-2 text-xs text-slate-600">
-                Last method:{' '}
-                {state.lastConfirmationMethod === null
-                  ? '--'
-                  : state.lastConfirmationMethod}
-              </p>
 
               {state.lastError ? (
                 <p className="mt-2 text-xs text-rose-700">
@@ -644,7 +632,7 @@ export const ConfirmationRaceDemo = () => {
         })}
       </div>
 
-      <div className="relative mt-4 grid grid-cols-1 gap-2 rounded-2xl border border-white/80 bg-white/70 px-3 py-2 text-xs text-slate-700 shadow-sm backdrop-blur sm:grid-cols-3">
+      <div className="relative mt-4 grid grid-cols-1 gap-2 rounded-2xl border border-white/80 bg-white/70 px-3 py-2 text-xs text-slate-700 shadow-sm backdrop-blur sm:grid-cols-2">
         <p>
           <span className="font-semibold text-slate-900">Wallet:</span>{' '}
           {formatAddress(walletAddress)}
@@ -652,11 +640,6 @@ export const ConfirmationRaceDemo = () => {
         <p>
           <span className="font-semibold text-slate-900">Balance:</span>{' '}
           {formatBalanceEth(walletBalanceEth)}
-        </p>
-        <p>
-          <span className="font-semibold text-slate-900">Mode:</span>{' '}
-          {walletSpoofMode ? 'Spoof' : 'Live'} /{' '}
-          {walletSnapshotAvailable ? 'Configured' : 'Missing key'}
         </p>
       </div>
 
