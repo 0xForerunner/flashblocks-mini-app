@@ -36,8 +36,10 @@ body {
     rgba(219, 234, 254, 0.86) 42%,
     rgba(186, 230, 253, 0.58) 100%
   );
-  --orbit-size: 6.5rem;
-  --orbit-radius: calc(var(--orbit-size) / 2);
+  --orbit-width: 8.8rem;
+  --orbit-height: 4.8rem;
+  --orbit-radius-x: calc(var(--orbit-width) / 2);
+  --orbit-arc-rise: 1.7rem;
   overflow: hidden;
   isolation: isolate;
   box-shadow:
@@ -61,8 +63,8 @@ body {
 .lane-track::after {
   content: '';
   position: absolute;
-  width: var(--orbit-size);
-  height: var(--orbit-size);
+  width: var(--orbit-width);
+  height: var(--orbit-height);
   left: 50%;
   top: 50%;
   border-radius: 9999px;
@@ -137,12 +139,12 @@ body {
 }
 
 .lane-node-left {
-  left: calc(50% - var(--orbit-radius));
+  left: calc(50% - var(--orbit-radius-x));
   transform: translate(-50%, -50%);
 }
 
 .lane-node-right {
-  left: calc(50% + var(--orbit-radius));
+  left: calc(50% + var(--orbit-radius-x));
   transform: translate(-50%, -50%);
 }
 
@@ -203,8 +205,19 @@ body {
 @keyframes lane-send {
   0% {
     opacity: 0.85;
-    transform: translate(-50%, -50%) rotate(180deg) translateX(var(--orbit-radius))
-      rotate(-180deg) scale(0.86);
+    transform: translate(
+        calc(-50% - var(--orbit-radius-x)),
+        calc(-50% + 0rem)
+      )
+      scale(0.86);
+  }
+
+  25% {
+    transform: translate(
+        calc(-50% - (var(--orbit-radius-x) * 0.5)),
+        calc(-50% - (var(--orbit-arc-rise) * 0.86))
+      )
+      scale(0.92);
   }
 
   72% {
@@ -213,16 +226,30 @@ body {
 
   100% {
     opacity: 0.22;
-    transform: translate(-50%, -50%) rotate(360deg) translateX(var(--orbit-radius))
-      rotate(-360deg) scale(1.06);
+    transform: translate(
+        calc(-50% + var(--orbit-radius-x)),
+        calc(-50% + 0rem)
+      )
+      scale(1.06);
   }
 }
 
 @keyframes lane-confirm {
   0% {
     opacity: 0.85;
-    transform: translate(-50%, -50%) rotate(0deg) translateX(var(--orbit-radius))
-      rotate(0deg) scale(0.86);
+    transform: translate(
+        calc(-50% + var(--orbit-radius-x)),
+        calc(-50% + 0rem)
+      )
+      scale(0.86);
+  }
+
+  25% {
+    transform: translate(
+        calc(-50% + (var(--orbit-radius-x) * 0.5)),
+        calc(-50% + (var(--orbit-arc-rise) * 0.86))
+      )
+      scale(0.92);
   }
 
   72% {
@@ -231,7 +258,10 @@ body {
 
   100% {
     opacity: 0.22;
-    transform: translate(-50%, -50%) rotate(180deg) translateX(var(--orbit-radius))
-      rotate(-180deg) scale(1.06);
+    transform: translate(
+        calc(-50% - var(--orbit-radius-x)),
+        calc(-50% + 0rem)
+      )
+      scale(1.06);
   }
 }
