@@ -1,5 +1,12 @@
 import crypto from 'crypto';
-import { Hex, createPublicClient, createWalletClient, hexToNumber, http } from 'viem';
+import {
+  Hex,
+  createPublicClient,
+  createWalletClient,
+  formatEther,
+  hexToNumber,
+  http,
+} from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { worldchain } from 'viem/chains';
 
@@ -84,6 +91,13 @@ const normalizePrivateKey = (): Hex => {
 };
 
 const getDemoAccount = () => privateKeyToAccount(normalizePrivateKey());
+const getDemoAccountOrNull = () => {
+  try {
+    return getDemoAccount();
+  } catch {
+    return null;
+  }
+};
 
 const getWalletClient = () => {
   const account = getDemoAccount();
@@ -157,6 +171,35 @@ const parseSpoofTxHash = (
 
 export const isDemoLane = (value: unknown): value is DemoLane =>
   value === 'flashblocks' || value === 'normal';
+
+export const getDemoWalletSnapshot = async (): Promise<{
+  address: Hex | null;
+  balanceWei: string | null;
+  balanceEth: string | null;
+  spoofMode: boolean;
+  available: boolean;
+}> => {
+  const account = getDemoAccountOrNull();
+
+  if (!account) {
+    return {
+      address: null,
+      balanceWei: null,
+      balanceEth: null,
+      spoofMode: spoofTransactions,
+      available: false,
+    };
+  }
+
+  const balanceWei = await publicClient.getBalance({ address: account.address });
+  return {
+    address: account.address,
+    balanceWei: balanceWei.toString(),
+    balanceEth: formatEther(balanceWei),
+    spoofMode: spoofTransactions,
+    available: true,
+  };
+};
 
 export const sendLaneTransaction = async (lane: DemoLane) => {
   if (spoofTransactions) {

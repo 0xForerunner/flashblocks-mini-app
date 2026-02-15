@@ -32,6 +32,14 @@ type ConfirmRouteResponse = {
   blockNumber: number | null;
 };
 
+type WalletRouteResponse = {
+  address: `0x${string}` | null;
+  balanceWei: string | null;
+  balanceEth: string | null;
+  spoofMode: boolean;
+  available: boolean;
+};
+
 const MAX_RUNTIME_MS = 8_000;
 const CONFIRM_POLL_MS = 90;
 const LANE_PACKET_ANIMATION_MS: Record<DemoLane, number> = {
@@ -129,11 +137,33 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const formatLatency = (value: number | null) =>
   value === null ? '--' : `${Math.round(value)}ms`;
 
+const formatAddress = (address: `0x${string}` | null) =>
+  address === null ? '--' : `${address.slice(0, 6)}...${address.slice(-4)}`;
+
+const formatBalanceEth = (value: string | null) => {
+  if (value === null) {
+    return '--';
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return `${value} ETH`;
+  }
+
+  const decimals = parsed >= 1 ? 4 : 6;
+  return `${parsed.toFixed(decimals)} ETH`;
+};
+
 export const ConfirmationRaceDemo = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [lanes, setLanes] = useState<LaneMap>(INITIAL_LANES);
   const [remainingMs, setRemainingMs] = useState(MAX_RUNTIME_MS);
   const [fatalErrorMessage, setFatalErrorMessage] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<`0x${string}` | null>(null);
+  const [walletBalanceEth, setWalletBalanceEth] = useState<string | null>(null);
+  const [walletSnapshotAvailable, setWalletSnapshotAvailable] = useState(false);
+  const [walletSpoofMode, setWalletSpoofMode] = useState(false);
+  const [walletSnapshotError, setWalletSnapshotError] = useState<string | null>(null);
 
   const runTokenRef = useRef(0);
   const runDeadlineRef = useRef<number | null>(null);
@@ -250,6 +280,31 @@ export const ConfirmationRaceDemo = () => {
     },
     [],
   );
+
+  const refreshWalletSnapshot = useCallback(async () => {
+    try {
+      const response = await fetch('/api/demo/wallet', { cache: 'no-store' });
+      const payload = (await response.json()) as WalletRouteResponse & {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to fetch wallet snapshot');
+      }
+
+      setWalletAddress(payload.address);
+      setWalletBalanceEth(payload.balanceEth);
+      setWalletSnapshotAvailable(payload.available);
+      setWalletSpoofMode(payload.spoofMode);
+      setWalletSnapshotError(
+        payload.available
+          ? null
+          : 'Demo wallet not configured. Set DEMO_PRIVATE_KEY for live balance.',
+      );
+    } catch (error) {
+      setWalletSnapshotError(asErrorMessage(error));
+    }
+  }, []);
 
   const runLaneLoop = useCallback(
     async (lane: DemoLane, token: number) => {
@@ -390,6 +445,17 @@ export const ConfirmationRaceDemo = () => {
     void runLaneLoop('flashblocks', token);
     void runLaneLoop('normal', token);
   }, [isRunning, runLaneLoop, stopRun]);
+
+  useEffect(() => {
+    void refreshWalletSnapshot();
+    const intervalId = window.setInterval(() => {
+      void refreshWalletSnapshot();
+    }, isRunning ? 2_000 : 5_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isRunning, refreshWalletSnapshot]);
 
   useEffect(() => {
     if (!isRunning) {
@@ -577,6 +643,26 @@ export const ConfirmationRaceDemo = () => {
           );
         })}
       </div>
+
+      <div className="relative mt-4 grid grid-cols-1 gap-2 rounded-2xl border border-white/80 bg-white/70 px-3 py-2 text-xs text-slate-700 shadow-sm backdrop-blur sm:grid-cols-3">
+        <p>
+          <span className="font-semibold text-slate-900">Wallet:</span>{' '}
+          {formatAddress(walletAddress)}
+        </p>
+        <p>
+          <span className="font-semibold text-slate-900">Balance:</span>{' '}
+          {formatBalanceEth(walletBalanceEth)}
+        </p>
+        <p>
+          <span className="font-semibold text-slate-900">Mode:</span>{' '}
+          {walletSpoofMode ? 'Spoof' : 'Live'} /{' '}
+          {walletSnapshotAvailable ? 'Configured' : 'Missing key'}
+        </p>
+      </div>
+
+      {walletSnapshotError ? (
+        <p className="relative mt-2 text-xs text-amber-700">{walletSnapshotError}</p>
+      ) : null}
     </section>
   );
 };

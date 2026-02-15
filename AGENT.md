@@ -11,6 +11,7 @@
   - `/` redirects to `/home`.
   - No login/auth button is required for local browser testing.
 - `/home` renders a two-lane confirmation race UI with `Start` and `Stop`.
+- `/home` also shows the shared demo wallet address and ETH balance.
 - Runtime behavior:
   - `Start` launches both lanes simultaneously.
   - `Stop` immediately aborts in-flight polling and halts new sends.
@@ -36,6 +37,7 @@
 - API:
   - `POST /api/demo/send` -> `src/app/api/demo/send/route.ts`
   - `POST /api/demo/confirm` -> `src/app/api/demo/confirm/route.ts`
+  - `GET /api/demo/wallet` -> `src/app/api/demo/wallet/route.ts`
 - Transaction/confirmation backend logic:
   - `src/lib/demo-tx.ts`
   - real mode sends value `0` self-transfer (`gas: 21000`) from lane signer
