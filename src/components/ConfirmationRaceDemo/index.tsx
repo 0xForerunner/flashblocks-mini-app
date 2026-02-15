@@ -43,7 +43,7 @@ const MAX_RUNTIME_MS = 8_000;
 const CONFIRM_POLL_MS = 90;
 const LANE_PACKET_ANIMATION_MS: Record<DemoLane, number> = {
   flashblocks: 420,
-  normal: 560,
+  normal: 1120,
 };
 
 const LANE_META: Record<
@@ -57,7 +57,7 @@ const LANE_META: Record<
   }
 > = {
   flashblocks: {
-    title: 'Flashblocks lane',
+    title: 'Flashblocks',
     subtitle: 'Pending block visibility before receipt finalization',
     cardClassName:
       'relative overflow-hidden border-cyan-200/80 bg-gradient-to-br from-cyan-50 via-sky-50 to-cyan-100/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_12px_30px_-24px_rgba(14,116,144,0.75)]',
@@ -65,7 +65,7 @@ const LANE_META: Record<
     packetEmoji: '🔥',
   },
   normal: {
-    title: 'Normal lane',
+    title: 'Normal',
     subtitle: 'Confirmation via transaction receipt',
     cardClassName:
       'relative overflow-hidden border-slate-200/80 bg-gradient-to-br from-slate-50 via-blue-50/60 to-slate-100/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_12px_30px_-24px_rgba(30,41,59,0.45)]',
@@ -100,12 +100,12 @@ const INITIAL_LANES = (): LaneMap => ({
 });
 
 const laneStatusLabel: Record<LaneStatus, string> = {
-  idle: 'Idle',
-  sending: 'Sending',
-  waiting: 'Checking chain',
-  confirmed: 'Confirmed',
-  error: 'Retrying',
-  stopped: 'Stopped',
+  idle: '',
+  sending: '',
+  waiting: '',
+  confirmed: '',
+  error: '',
+  stopped: '',
 };
 
 const asErrorMessage = (error: unknown) => {
@@ -526,12 +526,10 @@ export const ConfirmationRaceDemo = () => {
 
       <header className="relative mb-5">
         <h1 className="text-xl font-semibold text-slate-900">
-          Flashblocks vs Normal Confirmation
+          Flashblocks Confirmations
         </h1>
         <p className="text-sm text-slate-600">
-          Flashblocks expose pending block contents before standard receipt
-          confirmation, so this compares early visibility vs normal receipt-based
-          confirmation.
+          Comparing flashblocks preconfirmations vs normal receipt confirmation.
         </p>
       </header>
 
@@ -555,7 +553,7 @@ export const ConfirmationRaceDemo = () => {
         <span className="ml-auto text-xs font-medium text-slate-500">
           {isRunning
             ? `Auto-stop in ${(remainingMs / 1000).toFixed(1)}s`
-            : 'Stopped'}
+            : ''}
         </span>
       </div>
 
@@ -572,12 +570,9 @@ export const ConfirmationRaceDemo = () => {
                 className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/50 to-transparent"
               />
               <div className="mb-3 flex items-start justify-between gap-2">
-                <div>
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-900">
-                    {meta.title}
-                  </h2>
-                  <p className="text-xs text-slate-600">{meta.subtitle}</p>
-                </div>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-900">
+                  {meta.title}
+                </h2>
                 <span className="text-xs font-medium text-slate-700">
                   {laneStatusLabel[state.status]}
                 </span>
@@ -585,16 +580,16 @@ export const ConfirmationRaceDemo = () => {
 
               <div className="lane-track mb-3">
                 <span className="lane-node lane-node-left">
-                  <span className="lane-node-icon" aria-hidden="true">
+                  <span className="lane-node-glyph" aria-hidden="true">
                     👤
                   </span>
-                  <span>User</span>
+                  <span className="lane-node-label">User</span>
                 </span>
                 <span className="lane-node lane-node-right">
-                  <span className="lane-node-icon" aria-hidden="true">
+                  <span className="lane-node-glyph" aria-hidden="true">
                     ⛓️
                   </span>
-                  <span>Chain</span>
+                  <span className="lane-node-label">Chain</span>
                 </span>
                 {state.sendAnimationTick > 0 ? (
                   <span
