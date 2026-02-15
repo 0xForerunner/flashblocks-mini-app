@@ -27,7 +27,8 @@ declare module 'next-auth' {
 // For more information on each option (and a full list of options) go to
 // https://authjs.dev/getting-started/authentication/credentials
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  trustHost: true,
   session: { strategy: 'jwt' },
   providers: [
     Credentials({
@@ -86,7 +87,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session: async ({ session, token }) => {
       if (token.userId) {
         session.user.id = token.userId as string;
-        session.user.walletAddress = token.address as string;
+        session.user.walletAddress = token.walletAddress as string;
         session.user.username = token.username as string;
         session.user.profilePictureUrl = token.profilePictureUrl as string;
       }

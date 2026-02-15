@@ -2,19 +2,27 @@
 
 [Mini apps](https://docs.worldcoin.org/mini-apps) enable third-party developers to create native-like applications within World App.
 
-This template is a way for you to quickly get started with authentication and examples of some of the trickier commands.
+This project is configured as a Flashblocks confirmation demo. The `/home` screen runs two parallel transaction loops:
+
+- Top lane: flashblocks-style confirmation based on `eth_getBlockByNumber("pending", false)`.
+- Bottom lane: normal confirmation based on first non-null `eth_getTransactionReceipt`.
 
 ## Getting Started
 
-1. cp .env.example .env.local
-2. Follow the instructions in the .env.local file
-3. Run `npm run dev`
-4. Run `ngrok http 3000`
-5. Run `npx auth secret` to update the `AUTH_SECRET` in the .env.local file
-6. Add your domain to the `allowedDevOrigins` in the next.config.ts file.
-7. [For Testing] If you're using a proxy like ngrok, you need to update the `AUTH_URL` in the .env.local file to your ngrok url.
-8. Continue to developer.worldcoin.org and make sure your app is connected to the right ngrok url
-9. [Optional] For Verify and Send Transaction to work you need to do some more setup in the dev portal. The steps are outlined in the respective component files.
+1. `cp .env.sample .env.local`
+2. Fill required vars in `.env.local`:
+3. `AUTH_SECRET` (generate with `npx auth secret`)
+4. `HMAC_SECRET_KEY` (generate with `openssl rand -base64 32`)
+5. `NEXT_PUBLIC_APP_ID`
+6. `DEMO_FLASHBLOCKS_PRIVATE_KEY` and `DEMO_NORMAL_PRIVATE_KEY` (two funded mainnet demo wallets)
+7. RPC defaults are Worldchain mainnet (`https://worldchain.worldcoin.org`, `wss://worldchain.worldcoin.org:8546`)
+8. Set `FLASHBLOCKS_BLOCK_TAG` (`pending` by default, or `latest` as fallback)
+9. (Optional for local laptop testing) set `DEMO_SPOOF_TRANSACTIONS='true'` (spoof timings are fixed at `300ms` for flashblocks and `2500ms` for normal lane)
+10. Run `npm run dev`
+11. Run `ngrok http 3000`
+12. Set `AUTH_URL` to your ngrok URL
+13. Add your domain to `allowedDevOrigins` in `next.config.ts`
+14. Verify the app URL mapping in developer.worldcoin.org
 
 ## Authentication
 
@@ -27,6 +35,17 @@ This starter kit uses [Mini Apps UI Kit](https://github.com/worldcoin/mini-apps-
 ## Eruda
 
 [Eruda](https://github.com/liriliri/eruda) is a tool that allows you to inspect the console while building as a mini app. You should disable this in production.
+
+## Demo Behavior
+
+- `Start` kicks off both lanes simultaneously.
+- `Stop` aborts in-flight checks and immediately halts new sends.
+- Auto-stop occurs after 5 seconds.
+- Confirmation metrics shown per lane:
+- Sends attempted
+- Confirmations observed
+- Latest latency (ms)
+- Average latency (ms)
 
 ## Contributing
 

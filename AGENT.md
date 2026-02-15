@@ -1,73 +1,77 @@
-# Flashblocks Mini App Plan
+# Flashblocks Mini App Status
 
 ## Reference Docs
 
 - Testing quick start: <https://docs.world.org/mini-apps/quick-start/testing>
 - Commands quick start: <https://docs.world.org/mini-apps/quick-start/commands>
 
-## Context
+## Current Product Behavior
 
-This repository currently contains the World Mini App quick start kit.  
-Goal: turn it into a simple demo that compares normal transaction confirmations vs flashblocks-style confirmations.
-
-## Product Goal
-
-Build a mini app with a `Start` / `Stop` interaction that runs two confirmation flows in parallel for up to 5 seconds:
-
-- Top lane: flashblocks confirmation flow (using `pending` tag behavior).
-- Bottom lane: normal confirmation flow.
-
-Each lane repeatedly does:
-
-1. Send a transaction.
-2. Play a very fast send animation (`<100ms`) from left to right (user -> chain).
-3. Wait for confirmation.
-4. Play a very fast confirmation animation (`<100ms`) from right to left (chain -> user).
-5. Repeat until `Stop` is pressed or 5 seconds elapse.
-
-Both lanes run simultaneously and independently.
-
-## Clarified Behavior
-
-- `Start` begins both loops at the same time.
-- `Stop` halts new sends and ends both loops immediately.
-- Auto-stop after 5 seconds if not stopped manually.
-- On stop, do not wait for in-flight confirmations to finish rendering.
-- UI should make lane distinction obvious (top = flashblocks, bottom = normal).
-
-## Technical Decisions Captured
-
-- Chain/network: Worldchain mainnet.
-- RPC endpoints:
-  - HTTP: `https://worldchain.worldcoin.org`
-  - WebSocket: `wss://worldchain.worldcoin.org:8546`
-- Transactions: real on-chain transactions in both lanes.
-- Signing model: no per-transaction user prompt; transactions are signed by demo key(s) controlled by the app backend.
-- Cost/contract constraints: use cheap transactions and avoid deploying or relying on custom contracts.
-- Flashblocks confirmation lane: use `eth_getBlockByNumber` with `"pending"` and detect the sent tx as pending-confirmed for this lane.
-- Normal lane: use first non-null `eth_getTransactionReceipt` as confirmation.
-- Metrics: show minimal send-to-confirmation timing metrics in UI.
-- Error handling: immediately retry failed sends/checks (optional lightweight error animation).
-- Throughput: send next tx immediately after confirmation (no fixed interval cap).
-- Rate limiting: no explicit tx-count cap; runtime cap remains 5 seconds.
-- Nonce strategy: use one backend signer per lane (two demo wallets total) to avoid nonce contention and keep implementation simple.
-
-## Suggested Implementation Shape
-
-- Keep one loop controller per lane with shared app-level run state.
-- Use an abort/cancel flag so stop is immediate and race-safe.
-- Send requests from the mini app UI to backend endpoints that sign and broadcast transactions.
-- Use a simple native transfer pattern (e.g., self-transfer) to avoid contract dependency.
-- Track per-lane metrics:
+- The app opens directly into the demo flow:
+  - `/` redirects to `/home`.
+  - No login/auth button is required for local browser testing.
+- `/home` renders a two-lane confirmation race UI with `Start` and `Stop`.
+- Runtime behavior:
+  - `Start` launches both lanes simultaneously.
+  - `Stop` immediately aborts in-flight polling and halts new sends.
+  - Auto-stop triggers at 5 seconds.
+  - Both lanes loop send -> confirm until stop/timeout.
+- Lanes:
+  - Top lane: flashblocks lane, confirmation by block tag scan (`pending` or `latest`).
+  - Bottom lane: normal lane, confirmation by first non-null receipt.
+- Per-lane metrics shown:
   - sends attempted
   - confirmations observed
-  - latest confirmation latency (ms)
-  - average confirmation latency (ms)
-- Use `value = 0` by default for cheapest transfer payload, and switch to `1 wei` only if provider/wallet constraints require it.
-- Keep private keys server-side only (never shipped to client bundle).
+  - latest latency (ms)
+  - average latency (ms)
 
-## Remaining Prerequisites (Non-Product Decisions)
+## Implemented Architecture
 
-1. Funding and key management: confirm both demo wallets have enough mainnet gas balance for repeated real txs.
-2. Visual error treatment: optional brief error pulse/flash on lane when retry happens.
-3. Pending visibility check: validate `eth_getBlockByNumber("pending", true)` on the selected RPC consistently surfaces newly broadcast txs quickly enough for the top-lane demo.
+- UI:
+  - `src/components/ConfirmationRaceDemo/index.tsx`
+  - two independent async lane loops with shared run-state token
+  - fast send/confirm animations (`90ms`)
+- API:
+  - `POST /api/demo/send` -> `src/app/api/demo/send/route.ts`
+  - `POST /api/demo/confirm` -> `src/app/api/demo/confirm/route.ts`
+- Transaction/confirmation backend logic:
+  - `src/lib/demo-tx.ts`
+  - real mode sends value `0` self-transfer (`gas: 21000`) from lane signer
+  - flashblocks lane uses `eth_getBlockByNumber(<tag>, false)` transaction hash matching
+  - normal lane uses `eth_getTransactionReceipt`
+
+## Spoof Mode (Implemented)
+
+- Purpose: local testing without spending gas or needing live wallet send success.
+- Controlled by env vars:
+  - `DEMO_SPOOF_TRANSACTIONS`
+- Behavior:
+  - `send` returns synthetic tx hashes and deterministic synthetic from-addresses.
+  - `confirm` returns `confirmed: true` after lane-specific delays:
+    - flashblocks: `300ms`
+    - normal: `2500ms`
+  - flashblocks lane reports method based on configured block tag (`pending` or `latest`).
+  - normal lane reports method `receipt`.
+
+## Environment Model
+
+- RPC and lane mode:
+  - `WORLDCHAIN_RPC_HTTP`
+  - `WORLDCHAIN_RPC_WS` (configured but not currently used by server logic)
+  - `FLASHBLOCKS_BLOCK_TAG` (`pending` default in sample, can be set to `latest`)
+- Real transaction mode keys:
+  - `DEMO_FLASHBLOCKS_PRIVATE_KEY`
+  - `DEMO_NORMAL_PRIVATE_KEY`
+- Spoof mode:
+  - `DEMO_SPOOF_TRANSACTIONS`
+
+## Auth State in Repo
+
+- NextAuth configuration remains in the codebase (`src/auth/index.ts`) and is functional.
+- `trustHost: true` is set to avoid local `UntrustedHost` errors.
+- The current demo route flow does not require authentication to run.
+
+## Notes
+
+- The app currently favors easy browser testing and iteration speed.
+- To switch back to real sends, set `DEMO_SPOOF_TRANSACTIONS='false'` and provide funded lane keys.
