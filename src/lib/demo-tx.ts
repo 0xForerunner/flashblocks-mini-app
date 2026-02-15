@@ -27,6 +27,35 @@ const LEGACY_NORMAL_PRIVATE_KEY_ENV = 'DEMO_NORMAL_PRIVATE_KEY';
 
 const worldchainRpcHttp =
   process.env.WORLDCHAIN_RPC_HTTP ?? 'https://worldchain.worldcoin.org';
+const worldchainRpcJwtSecret = process.env.WORLDCHAIN_RPC_JWT ?? '';
+
+const base64url = (data: Buffer | string) =>
+  Buffer.from(data).toString('base64url');
+
+const signJwt = (secret: string): string => {
+  const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = base64url(
+    JSON.stringify({ iat: Math.floor(Date.now() / 1000) }),
+  );
+  const key = Buffer.from(secret.replace(/^0x/, ''), 'hex');
+  const signature = crypto
+    .createHmac('sha256', key)
+    .update(`${header}.${payload}`)
+    .digest('base64url');
+  return `${header}.${payload}.${signature}`;
+};
+
+const rpcTransportOptions = worldchainRpcJwtSecret
+  ? {
+      onFetchRequest: (_request: Request, init: RequestInit) => ({
+        ...init,
+        headers: {
+          ...init.headers,
+          Authorization: `Bearer ${signJwt(worldchainRpcJwtSecret)}`,
+        },
+      }),
+    }
+  : {};
 
 const flashblocksBlockTag =
   process.env.FLASHBLOCKS_BLOCK_TAG === 'latest' ? 'latest' : 'pending';
@@ -48,7 +77,7 @@ const SPOOF_LANE_CODE: Record<DemoLane, string> = {
 
 const publicClient = createPublicClient({
   chain: worldchain,
-  transport: http(worldchainRpcHttp),
+  transport: http(worldchainRpcHttp, rpcTransportOptions),
 });
 
 const resolvePrivateKeyFromEnv = (): { envName: string; value: string } => {
@@ -105,7 +134,7 @@ const getWalletClient = () => {
   return createWalletClient({
     account,
     chain: worldchain,
-    transport: http(worldchainRpcHttp),
+    transport: http(worldchainRpcHttp, rpcTransportOptions),
   });
 };
 
