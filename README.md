@@ -14,10 +14,10 @@ This project is configured as a Flashblocks confirmation demo. The `/home` scree
 3. `AUTH_SECRET` (generate with `npx auth secret`)
 4. `HMAC_SECRET_KEY` (generate with `openssl rand -base64 32`)
 5. `NEXT_PUBLIC_APP_ID`
-6. `DEMO_FLASHBLOCKS_PRIVATE_KEY` and `DEMO_NORMAL_PRIVATE_KEY` (two funded mainnet demo wallets)
+6. `DEMO_PRIVATE_KEY` (one funded mainnet demo wallet shared by both lanes)
 7. RPC defaults are Worldchain mainnet (`https://worldchain.worldcoin.org`, `wss://worldchain.worldcoin.org:8546`)
 8. Set `FLASHBLOCKS_BLOCK_TAG` (`pending` by default, or `latest` as fallback)
-9. (Optional for local laptop testing) set `DEMO_SPOOF_TRANSACTIONS='true'` (spoof timings are fixed at `300ms` for flashblocks and `2500ms` for normal lane)
+9. (Optional for local laptop testing) set `DEMO_SPOOF_TRANSACTIONS='true'` (spoof timings are fixed at `800ms` for flashblocks and `2500ms` for normal lane)
 10. Run `npm run dev`
 11. Run `ngrok http 3000`
 12. Set `AUTH_URL` to your ngrok URL
@@ -40,7 +40,7 @@ This starter kit uses [Mini Apps UI Kit](https://github.com/worldcoin/mini-apps-
 
 - `Start` kicks off both lanes simultaneously.
 - `Stop` aborts in-flight checks and immediately halts new sends.
-- Auto-stop occurs after 5 seconds.
+- Auto-stop occurs after 8 seconds.
 - Confirmation metrics shown per lane:
 - Sends attempted
 - Confirmations observed

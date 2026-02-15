@@ -14,10 +14,9 @@ type RpcTransactionReceipt = {
   blockNumber: Hex | null;
 };
 
-const LANE_PRIVATE_KEY_ENV: Record<DemoLane, string> = {
-  flashblocks: 'DEMO_FLASHBLOCKS_PRIVATE_KEY',
-  normal: 'DEMO_NORMAL_PRIVATE_KEY',
-};
+const DEMO_PRIVATE_KEY_ENV = 'DEMO_PRIVATE_KEY';
+const LEGACY_FLASHBLOCKS_PRIVATE_KEY_ENV = 'DEMO_FLASHBLOCKS_PRIVATE_KEY';
+const LEGACY_NORMAL_PRIVATE_KEY_ENV = 'DEMO_NORMAL_PRIVATE_KEY';
 
 const worldchainRpcHttp =
   process.env.WORLDCHAIN_RPC_HTTP ?? 'https://worldchain.worldcoin.org';
@@ -26,7 +25,7 @@ const flashblocksBlockTag =
   process.env.FLASHBLOCKS_BLOCK_TAG === 'latest' ? 'latest' : 'pending';
 const spoofTransactions = process.env.DEMO_SPOOF_TRANSACTIONS === 'true';
 const SPOOF_CONFIRMATION_DELAY_MS_BY_LANE: Record<DemoLane, number> = {
-  flashblocks: 300,
+  flashblocks: 800,
   normal: 2_500,
 };
 
@@ -45,17 +44,37 @@ const publicClient = createPublicClient({
   transport: http(worldchainRpcHttp),
 });
 
-const normalizePrivateKey = (lane: DemoLane): Hex => {
-  const envName = LANE_PRIVATE_KEY_ENV[lane];
-  const rawPrivateKey = process.env[envName];
-
-  if (!rawPrivateKey) {
-    throw new Error(`Missing required env var: ${envName}`);
+const resolvePrivateKeyFromEnv = (): { envName: string; value: string } => {
+  const preferred = process.env[DEMO_PRIVATE_KEY_ENV];
+  if (preferred) {
+    return { envName: DEMO_PRIVATE_KEY_ENV, value: preferred };
   }
 
-  const normalized = rawPrivateKey.startsWith('0x')
-    ? rawPrivateKey
-    : `0x${rawPrivateKey}`;
+  const legacyFlashblocks = process.env[LEGACY_FLASHBLOCKS_PRIVATE_KEY_ENV];
+  if (legacyFlashblocks) {
+    return {
+      envName: LEGACY_FLASHBLOCKS_PRIVATE_KEY_ENV,
+      value: legacyFlashblocks,
+    };
+  }
+
+  const legacyNormal = process.env[LEGACY_NORMAL_PRIVATE_KEY_ENV];
+  if (legacyNormal) {
+    return {
+      envName: LEGACY_NORMAL_PRIVATE_KEY_ENV,
+      value: legacyNormal,
+    };
+  }
+
+  throw new Error(`Missing required env var: ${DEMO_PRIVATE_KEY_ENV}`);
+};
+
+const normalizePrivateKey = (): Hex => {
+  const { envName, value } = resolvePrivateKeyFromEnv();
+
+  const normalized = value.startsWith('0x')
+    ? value
+    : `0x${value}`;
 
   if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
     throw new Error(`Invalid private key format for ${envName}`);
@@ -64,17 +83,27 @@ const normalizePrivateKey = (lane: DemoLane): Hex => {
   return normalized as Hex;
 };
 
-const getLaneAccount = (lane: DemoLane) =>
-  privateKeyToAccount(normalizePrivateKey(lane));
+const getDemoAccount = () => privateKeyToAccount(normalizePrivateKey());
 
-const getWalletClientForLane = (lane: DemoLane) => {
-  const account = getLaneAccount(lane);
+const getWalletClient = () => {
+  const account = getDemoAccount();
 
   return createWalletClient({
     account,
     chain: worldchain,
     transport: http(worldchainRpcHttp),
   });
+};
+
+let sendTransactionQueue: Promise<void> = Promise.resolve();
+
+const enqueueSendTransaction = <T>(operation: () => Promise<T>): Promise<T> => {
+  const result = sendTransactionQueue.then(operation, operation);
+  sendTransactionQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
 };
 
 const getTransactionReceipt = async (txHash: Hex) => {
@@ -139,15 +168,17 @@ export const sendLaneTransaction = async (lane: DemoLane) => {
     };
   }
 
-  const account = getLaneAccount(lane);
-  const walletClient = getWalletClientForLane(lane);
+  const account = getDemoAccount();
+  const walletClient = getWalletClient();
 
-  const txHash = await walletClient.sendTransaction({
-    account,
-    to: account.address,
-    value: BigInt(0),
-    gas: BigInt(21_000),
-  });
+  const txHash = await enqueueSendTransaction(() =>
+    walletClient.sendTransaction({
+      account,
+      to: account.address,
+      value: BigInt(0),
+      gas: BigInt(21_000),
+    }),
+  );
 
   return {
     txHash,

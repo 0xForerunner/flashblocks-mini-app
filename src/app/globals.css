@@ -27,13 +27,53 @@ body {
 
 .lane-track {
   position: relative;
-  height: 3rem;
-  border-radius: 9999px;
-  border: 1px solid #cbd5e1;
-  background: linear-gradient(90deg, #dbeafe 0%, #e2e8f0 45%, #dbeafe 100%);
-  --lane-start: 1.25rem;
-  --lane-end: calc(100% - 1.25rem);
+  min-height: 8rem;
+  border-radius: 1.25rem;
+  border: 1px solid #bfdbfe;
+  background: radial-gradient(
+    circle at 50% 34%,
+    rgba(255, 255, 255, 0.94) 0%,
+    rgba(219, 234, 254, 0.86) 42%,
+    rgba(186, 230, 253, 0.58) 100%
+  );
+  --orbit-size: 6.5rem;
+  --orbit-radius: calc(var(--orbit-size) / 2);
   overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -14px 28px rgba(59, 130, 246, 0.1);
+}
+
+.lane-track::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 40%,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0) 68%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.lane-track::after {
+  content: '';
+  position: absolute;
+  width: var(--orbit-size);
+  height: var(--orbit-size);
+  left: 50%;
+  top: 50%;
+  border-radius: 9999px;
+  border: 1px dashed rgba(14, 116, 144, 0.38);
+  transform: translate(-50%, -50%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4),
+    0 0 0 8px rgba(219, 234, 254, 0.35);
+  animation: orbit-breath 3.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .lane-node {
@@ -97,20 +137,23 @@ body {
 }
 
 .lane-node-left {
-  left: 0.35rem;
+  left: calc(50% - var(--orbit-radius));
+  transform: translate(-50%, -50%);
 }
 
 .lane-node-right {
-  right: 0.35rem;
+  left: calc(50% + var(--orbit-radius));
+  transform: translate(-50%, -50%);
 }
 
 .lane-packet {
   position: absolute;
   top: 50%;
+  left: 50%;
   width: 1.35rem;
   height: 1.35rem;
   border-radius: 9999px;
-  transform: translateY(-50%) scale(0.9);
+  transform: translate(-50%, -50%) scale(0.9);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -118,17 +161,17 @@ body {
   line-height: 1;
   border: 1px solid rgba(255, 255, 255, 0.65);
   background: rgba(248, 250, 252, 0.8);
+  backdrop-filter: blur(2px);
   opacity: 0;
   pointer-events: none;
+  z-index: 1;
 }
 
 .lane-packet-send {
-  left: var(--lane-start);
   animation: lane-send 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .lane-packet-confirm {
-  left: var(--lane-end);
   animation: lane-confirm 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
@@ -140,11 +183,28 @@ body {
   filter: drop-shadow(0 0 0.4rem rgba(56, 189, 248, 0.45));
 }
 
+.lane-packet-send.lane-packet-normal,
+.lane-packet-confirm.lane-packet-normal {
+  animation-duration: 560ms;
+}
+
+@keyframes orbit-breath {
+  0% {
+    transform: translate(-50%, -50%) scale(0.985);
+    opacity: 0.75;
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(1.015);
+    opacity: 1;
+  }
+}
+
 @keyframes lane-send {
   0% {
-    left: var(--lane-start);
     opacity: 0.85;
-    transform: translateY(-50%) scale(0.86);
+    transform: translate(-50%, -50%) rotate(180deg) translateX(var(--orbit-radius))
+      rotate(-180deg) scale(0.86);
   }
 
   72% {
@@ -152,17 +212,17 @@ body {
   }
 
   100% {
-    left: var(--lane-end);
     opacity: 0.22;
-    transform: translateY(-50%) scale(1.06);
+    transform: translate(-50%, -50%) rotate(360deg) translateX(var(--orbit-radius))
+      rotate(-360deg) scale(1.06);
   }
 }
 
 @keyframes lane-confirm {
   0% {
-    left: var(--lane-end);
     opacity: 0.85;
-    transform: translateY(-50%) scale(0.86);
+    transform: translate(-50%, -50%) rotate(0deg) translateX(var(--orbit-radius))
+      rotate(0deg) scale(0.86);
   }
 
   72% {
@@ -170,8 +230,8 @@ body {
   }
 
   100% {
-    left: var(--lane-start);
     opacity: 0.22;
-    transform: translateY(-50%) scale(1.06);
+    transform: translate(-50%, -50%) rotate(180deg) translateX(var(--orbit-radius))
+      rotate(-180deg) scale(1.06);
   }
 }

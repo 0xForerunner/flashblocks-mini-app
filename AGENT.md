@@ -14,7 +14,8 @@
 - Runtime behavior:
   - `Start` launches both lanes simultaneously.
   - `Stop` immediately aborts in-flight polling and halts new sends.
-  - Auto-stop triggers at 5 seconds.
+  - Auto-stop triggers at 8 seconds.
+  - In real mode, an out-of-gas/insufficient-funds send error shows a popup and stops both lanes.
   - Both lanes loop send -> confirm until stop/timeout.
 - Lanes:
   - Top lane: flashblocks lane, confirmation by block tag scan (`pending` or `latest`).
@@ -30,7 +31,8 @@
 - UI:
   - `src/components/ConfirmationRaceDemo/index.tsx`
   - two independent async lane loops with shared run-state token
-  - fast send/confirm animations (`90ms`)
+  - circular send/confirm emoji animations (`420ms` flashblocks, `560ms` normal)
+  - send visual triggers on send, but waits for an active receive animation to finish
 - API:
   - `POST /api/demo/send` -> `src/app/api/demo/send/route.ts`
   - `POST /api/demo/confirm` -> `src/app/api/demo/confirm/route.ts`
@@ -48,7 +50,7 @@
 - Behavior:
   - `send` returns synthetic tx hashes and deterministic synthetic from-addresses.
   - `confirm` returns `confirmed: true` after lane-specific delays:
-    - flashblocks: `300ms`
+    - flashblocks: `800ms`
     - normal: `2500ms`
   - flashblocks lane reports method based on configured block tag (`pending` or `latest`).
   - normal lane reports method `receipt`.
@@ -60,8 +62,7 @@
   - `WORLDCHAIN_RPC_WS` (configured but not currently used by server logic)
   - `FLASHBLOCKS_BLOCK_TAG` (`pending` default in sample, can be set to `latest`)
 - Real transaction mode keys:
-  - `DEMO_FLASHBLOCKS_PRIVATE_KEY`
-  - `DEMO_NORMAL_PRIVATE_KEY`
+  - `DEMO_PRIVATE_KEY` (shared signer for both lanes)
 - Spoof mode:
   - `DEMO_SPOOF_TRANSACTIONS`
 
@@ -74,4 +75,4 @@
 ## Notes
 
 - The app currently favors easy browser testing and iteration speed.
-- To switch back to real sends, set `DEMO_SPOOF_TRANSACTIONS='false'` and provide funded lane keys.
+- To switch back to real sends, set `DEMO_SPOOF_TRANSACTIONS='false'` and provide a funded demo key.
