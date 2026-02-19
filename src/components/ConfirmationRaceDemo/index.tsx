@@ -4,7 +4,7 @@ import { Button } from '@worldcoin/mini-apps-ui-kit-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type DemoLane = 'flashblocks' | 'normal';
-type ConfirmationMethod = 'pending' | 'latest' | 'none';
+type ConfirmationMethod = 'receipt' | 'latest' | 'none';
 type LaneStatus = 'idle' | 'sending' | 'waiting' | 'confirmed' | 'error' | 'stopped';
 
 type LaneState = {
@@ -58,7 +58,7 @@ const LANE_META: Record<
 > = {
   flashblocks: {
     title: 'Flashblocks',
-    subtitle: 'Pending block visibility before receipt finalization',
+    subtitle: 'Receipt visibility via getTransactionReceipt',
     cardClassName:
       'relative overflow-hidden border-cyan-200/80 bg-gradient-to-br from-cyan-50 via-sky-50 to-cyan-100/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_12px_30px_-24px_rgba(14,116,144,0.75)]',
     packetClassName: 'lane-packet-flashblocks',
@@ -529,7 +529,7 @@ export const ConfirmationRaceDemo = () => {
           Flashblocks Confirmations
         </h1>
         <p className="text-sm text-slate-600">
-          Comparing pending-block visibility vs latest-block visibility.
+          Comparing receipt visibility vs latest-block visibility.
         </p>
       </header>
 

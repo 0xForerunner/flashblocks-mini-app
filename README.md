@@ -4,7 +4,7 @@
 
 This project is configured as a Flashblocks confirmation demo. The `/home` screen runs two parallel transaction loops:
 
-- Top lane: flashblocks-style confirmation based on `eth_getBlockByNumber("pending", false)`.
+- Top lane: flashblocks-style confirmation based on `eth_getTransactionReceipt(txHash)`.
 - Bottom lane: normal confirmation based on `eth_getBlockByNumber("latest", false)`.
 
 ## Getting Started

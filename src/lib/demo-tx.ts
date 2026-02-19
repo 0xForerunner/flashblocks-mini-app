@@ -18,6 +18,10 @@ type RpcPendingBlock = {
   transactions: Hex[];
 };
 
+type RpcTransactionReceipt = {
+  blockNumber: Hex | null;
+};
+
 const DEMO_PRIVATE_KEY_ENV = 'DEMO_PRIVATE_KEY';
 const LEGACY_FLASHBLOCKS_PRIVATE_KEY_ENV = 'DEMO_FLASHBLOCKS_PRIVATE_KEY';
 const LEGACY_NORMAL_PRIVATE_KEY_ENV = 'DEMO_NORMAL_PRIVATE_KEY';
@@ -59,10 +63,11 @@ const SPOOF_CONFIRMATION_DELAY_MS_BY_LANE: Record<DemoLane, number> = {
   flashblocks: 800,
   normal: 2_500,
 };
-const BLOCK_TAG_BY_LANE: Record<DemoLane, 'pending' | 'latest'> = {
-  flashblocks: 'pending',
+const SPOOF_METHOD_BY_LANE: Record<DemoLane, 'receipt' | 'latest'> = {
+  flashblocks: 'receipt',
   normal: 'latest',
 };
+const NORMAL_BLOCK_TAG = 'latest' as const;
 
 const SPOOF_FROM_BY_LANE: Record<DemoLane, Hex> = {
   flashblocks: '0x00000000000000000000000000000000000000F1',
@@ -310,7 +315,7 @@ export const checkLaneConfirmation = async (
   txHash: Hex,
 ): Promise<{
   confirmed: boolean;
-  method: 'pending' | 'latest' | 'none';
+  method: 'receipt' | 'latest' | 'none';
   blockNumber: number | null;
 }> => {
   if (spoofTransactions) {
@@ -336,15 +341,38 @@ export const checkLaneConfirmation = async (
 
     return {
       confirmed: true,
-      method: BLOCK_TAG_BY_LANE[lane],
+      method: SPOOF_METHOD_BY_LANE[lane],
       blockNumber: null,
     };
   }
 
-  const blockTag = BLOCK_TAG_BY_LANE[lane];
+  if (lane === 'flashblocks') {
+    const receipt = (await publicClient.request({
+      method: 'eth_getTransactionReceipt',
+      params: [txHash],
+    })) as RpcTransactionReceipt | null;
+
+    if (receipt) {
+      return {
+        confirmed: true,
+        method: 'receipt',
+        blockNumber:
+          receipt.blockNumber !== null && receipt.blockNumber !== undefined
+            ? hexToNumber(receipt.blockNumber)
+            : null,
+      };
+    }
+
+    return {
+      confirmed: false,
+      method: 'none',
+      blockNumber: null,
+    };
+  }
+
   const block = (await publicClient.request({
     method: 'eth_getBlockByNumber',
-    params: [blockTag, false],
+    params: [NORMAL_BLOCK_TAG, false],
   })) as RpcPendingBlock | null;
 
   const inBlock =
@@ -356,7 +384,7 @@ export const checkLaneConfirmation = async (
   if (inBlock) {
     return {
       confirmed: true,
-      method: blockTag,
+      method: 'latest',
       blockNumber:
         block?.number !== null && block?.number !== undefined
           ? hexToNumber(block.number)

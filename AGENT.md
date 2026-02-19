@@ -19,7 +19,7 @@
   - In real mode, an out-of-gas/insufficient-funds send error shows a popup and stops both lanes.
   - Both lanes loop send -> confirm until stop/timeout.
 - Lanes:
-  - Top lane: flashblocks lane, confirmation by `eth_getBlockByNumber("pending", false)` scan.
+  - Top lane: flashblocks lane, confirmation by `eth_getTransactionReceipt(txHash)`.
   - Bottom lane: normal lane, confirmation by `eth_getBlockByNumber("latest", false)` scan.
 - Per-lane metrics shown:
   - sends attempted
@@ -41,8 +41,8 @@
 - Transaction/confirmation backend logic:
   - `src/lib/demo-tx.ts`
   - real mode sends value `0` self-transfer (`gas: 21000`) from lane signer
-  - both lanes use `eth_getBlockByNumber(<lane tag>, false)` transaction hash matching
-  - lane tags: flashblocks=`pending`, normal=`latest`
+  - flashblocks lane uses `eth_getTransactionReceipt(txHash)`
+  - normal lane uses `eth_getBlockByNumber("latest", false)` transaction hash matching
 
 ## Spoof Mode (Implemented)
 
@@ -54,7 +54,7 @@
   - `confirm` returns `confirmed: true` after lane-specific delays:
     - flashblocks: `800ms`
     - normal: `2500ms`
-  - flashblocks lane reports method `pending`.
+  - flashblocks lane reports method `receipt`.
   - normal lane reports method `latest`.
 
 ## Environment Model

@@ -1,7 +1,7 @@
-import { isDemoLane, sendLaneTransaction } from '@/lib/demo-tx';
-import { NextRequest, NextResponse } from 'next/server';
+import { isDemoLane, sendLaneTransaction } from "@/lib/demo-tx";
+import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 type SendRouteRequestBody = {
   lane?: unknown;
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   try {
     body = (await request.json()) as SendRouteRequestBody;
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const { lane } = body;
@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
     const result = await sendLaneTransaction(lane);
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Failed to send lane transaction', { lane, error });
+    console.error("Failed to send lane transaction", { lane, error });
     const message =
-      error instanceof Error ? error.message : 'Failed to send transaction';
+      error instanceof Error ? error.message : "Failed to send transaction";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
