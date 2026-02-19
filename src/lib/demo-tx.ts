@@ -398,3 +398,105 @@ export const checkLaneConfirmation = async (
     blockNumber: null,
   };
 };
+
+// --- Demo Race ---
+
+const POLL_INTERVAL_MS = 200;
+const LANES: DemoLane[] = ['flashblocks', 'normal'];
+
+export type DemoRaceEvent =
+  | { type: 'tx-sent'; lane: DemoLane; txHash: string; sentAtMs: number }
+  | {
+      type: 'tx-confirmed';
+      lane: DemoLane;
+      txHash: string;
+      confirmedAtMs: number;
+      elapsedMs: number;
+      method: string;
+      blockNumber: number | null;
+    }
+  | { type: 'end'; reason: 'complete' | 'timeout' | 'error' | 'aborted'; endedAtMs: number };
+
+type RunDemoRaceParams = {
+  durationMs: number;
+  signal: AbortSignal;
+  onEvent: (event: DemoRaceEvent) => void;
+};
+
+export const runDemoRace = async ({
+  durationMs,
+  signal,
+  onEvent,
+}: RunDemoRaceParams): Promise<void> => {
+  const startMs = Date.now();
+  const deadline = startMs + durationMs;
+
+  const laneTx: Record<DemoLane, { txHash: string; sentAtMs: number } | null> = {
+    flashblocks: null,
+    normal: null,
+  };
+  const confirmed = new Set<DemoLane>();
+
+  // Send transactions on both lanes
+  for (const lane of LANES) {
+    if (signal.aborted) {
+      onEvent({ type: 'end', reason: 'aborted', endedAtMs: Date.now() });
+      return;
+    }
+
+    try {
+      const { txHash } = await sendLaneTransaction(lane);
+      const sentAtMs = Date.now();
+      laneTx[lane] = { txHash, sentAtMs };
+      onEvent({ type: 'tx-sent', lane, txHash, sentAtMs });
+    } catch (error) {
+      console.error(`Failed to send tx on lane ${lane}`, error);
+      onEvent({ type: 'end', reason: 'error', endedAtMs: Date.now() });
+      return;
+    }
+  }
+
+  // Poll for confirmations until all confirmed or timeout
+  while (confirmed.size < LANES.length) {
+    if (signal.aborted) {
+      onEvent({ type: 'end', reason: 'aborted', endedAtMs: Date.now() });
+      return;
+    }
+
+    if (Date.now() >= deadline) {
+      onEvent({ type: 'end', reason: 'timeout', endedAtMs: Date.now() });
+      return;
+    }
+
+    for (const lane of LANES) {
+      if (confirmed.has(lane)) continue;
+      const tx = laneTx[lane];
+      if (!tx) continue;
+
+      try {
+        const result = await checkLaneConfirmation(lane, tx.txHash as Hex);
+        if (result.confirmed) {
+          const confirmedAtMs = Date.now();
+          confirmed.add(lane);
+          onEvent({
+            type: 'tx-confirmed',
+            lane,
+            txHash: tx.txHash,
+            confirmedAtMs,
+            elapsedMs: confirmedAtMs - tx.sentAtMs,
+            method: result.method,
+            blockNumber: result.blockNumber,
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to check confirmation on lane ${lane}`, error);
+      }
+    }
+
+    if (confirmed.size < LANES.length) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    }
+  }
+
+  onEvent({ type: 'end', reason: 'complete', endedAtMs: Date.now() });
+};
