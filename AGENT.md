@@ -19,8 +19,8 @@
   - In real mode, an out-of-gas/insufficient-funds send error shows a popup and stops both lanes.
   - Both lanes loop send -> confirm until stop/timeout.
 - Lanes:
-  - Top lane: flashblocks lane, confirmation by block tag scan (`pending` or `latest`).
-  - Bottom lane: normal lane, confirmation by first non-null receipt.
+  - Top lane: flashblocks lane, confirmation by `eth_getBlockByNumber("pending", false)` scan.
+  - Bottom lane: normal lane, confirmation by `eth_getBlockByNumber("latest", false)` scan.
 - Per-lane metrics shown:
   - sends attempted
   - confirmations observed
@@ -41,8 +41,8 @@
 - Transaction/confirmation backend logic:
   - `src/lib/demo-tx.ts`
   - real mode sends value `0` self-transfer (`gas: 21000`) from lane signer
-  - flashblocks lane uses `eth_getBlockByNumber(<tag>, false)` transaction hash matching
-  - normal lane uses `eth_getTransactionReceipt`
+  - both lanes use `eth_getBlockByNumber(<lane tag>, false)` transaction hash matching
+  - lane tags: flashblocks=`pending`, normal=`latest`
 
 ## Spoof Mode (Implemented)
 
@@ -54,15 +54,14 @@
   - `confirm` returns `confirmed: true` after lane-specific delays:
     - flashblocks: `800ms`
     - normal: `2500ms`
-  - flashblocks lane reports method based on configured block tag (`pending` or `latest`).
-  - normal lane reports method `receipt`.
+  - flashblocks lane reports method `pending`.
+  - normal lane reports method `latest`.
 
 ## Environment Model
 
 - RPC and lane mode:
   - `WORLDCHAIN_RPC_HTTP`
   - `WORLDCHAIN_RPC_WS` (configured but not currently used by server logic)
-  - `FLASHBLOCKS_BLOCK_TAG` (`pending` default in sample, can be set to `latest`)
 - Real transaction mode keys:
   - `DEMO_PRIVATE_KEY` (shared signer for both lanes)
 - Spoof mode:

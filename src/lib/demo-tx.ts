@@ -9,16 +9,13 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { worldchain } from 'viem/chains';
+import { createNonceManager, jsonRpc } from 'viem/nonce';
 
 export type DemoLane = 'flashblocks' | 'normal';
 
 type RpcPendingBlock = {
   number: Hex | null;
   transactions: Hex[];
-};
-
-type RpcTransactionReceipt = {
-  blockNumber: Hex | null;
 };
 
 const DEMO_PRIVATE_KEY_ENV = 'DEMO_PRIVATE_KEY';
@@ -57,12 +54,14 @@ const rpcTransportOptions = worldchainRpcJwtSecret
     }
   : {};
 
-const flashblocksBlockTag =
-  process.env.FLASHBLOCKS_BLOCK_TAG === 'latest' ? 'latest' : 'pending';
 const spoofTransactions = process.env.DEMO_SPOOF_TRANSACTIONS === 'true';
 const SPOOF_CONFIRMATION_DELAY_MS_BY_LANE: Record<DemoLane, number> = {
   flashblocks: 800,
   normal: 2_500,
+};
+const BLOCK_TAG_BY_LANE: Record<DemoLane, 'pending' | 'latest'> = {
+  flashblocks: 'pending',
+  normal: 'latest',
 };
 
 const SPOOF_FROM_BY_LANE: Record<DemoLane, Hex> = {
@@ -119,7 +118,40 @@ const normalizePrivateKey = (): Hex => {
   return normalized as Hex;
 };
 
-const getDemoAccount = () => privateKeyToAccount(normalizePrivateKey());
+const createDemoWalletProvider = (privateKey: Hex) => {
+  const nonceManager = createNonceManager({
+    source: jsonRpc(),
+  });
+  const account = privateKeyToAccount(privateKey, { nonceManager });
+  const walletClient = createWalletClient({
+    account,
+    chain: worldchain,
+    transport: http(worldchainRpcHttp, rpcTransportOptions),
+  });
+
+  return {
+    privateKey,
+    account,
+    walletClient,
+    nonceManager,
+  };
+};
+
+type DemoWalletProvider = ReturnType<typeof createDemoWalletProvider>;
+
+let demoWalletProvider: DemoWalletProvider | null = null;
+
+const getDemoWalletProvider = (): DemoWalletProvider => {
+  const privateKey = normalizePrivateKey();
+  if (demoWalletProvider?.privateKey === privateKey) {
+    return demoWalletProvider;
+  }
+
+  demoWalletProvider = createDemoWalletProvider(privateKey);
+  return demoWalletProvider;
+};
+
+const getDemoAccount = () => getDemoWalletProvider().account;
 const getDemoAccountOrNull = () => {
   try {
     return getDemoAccount();
@@ -128,15 +160,7 @@ const getDemoAccountOrNull = () => {
   }
 };
 
-const getWalletClient = () => {
-  const account = getDemoAccount();
-
-  return createWalletClient({
-    account,
-    chain: worldchain,
-    transport: http(worldchainRpcHttp, rpcTransportOptions),
-  });
-};
+const getWalletClient = () => getDemoWalletProvider().walletClient;
 
 let sendTransactionQueue: Promise<void> = Promise.resolve();
 
@@ -149,11 +173,17 @@ const enqueueSendTransaction = <T>(operation: () => Promise<T>): Promise<T> => {
   return result;
 };
 
-const getTransactionReceipt = async (txHash: Hex) => {
-  return publicClient.request({
-    method: 'eth_getTransactionReceipt',
-    params: [txHash],
-  }) as Promise<RpcTransactionReceipt | null>;
+const isNonceSyncError = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('nonce provided for the transaction is lower') ||
+    message.includes('nonce too low') ||
+    message.includes('already known')
+  );
 };
 
 const buildSpoofTxHash = (lane: DemoLane, createdAtMs: number): Hex => {
@@ -240,17 +270,34 @@ export const sendLaneTransaction = async (lane: DemoLane) => {
     };
   }
 
-  const account = getDemoAccount();
+  const walletProvider = getDemoWalletProvider();
+  const account = walletProvider.account;
   const walletClient = getWalletClient();
 
-  const txHash = await enqueueSendTransaction(() =>
+  const sendTransaction = () =>
     walletClient.sendTransaction({
       account,
       to: account.address,
       value: BigInt(0),
       gas: BigInt(21_000),
-    }),
-  );
+    });
+
+  const txHash = await enqueueSendTransaction(async () => {
+    try {
+      return await sendTransaction();
+    } catch (error) {
+      if (!isNonceSyncError(error)) {
+        throw error;
+      }
+
+      walletProvider.nonceManager.reset({
+        address: account.address,
+        chainId: worldchain.id,
+      });
+
+      return sendTransaction();
+    }
+  });
 
   return {
     txHash,
@@ -263,7 +310,7 @@ export const checkLaneConfirmation = async (
   txHash: Hex,
 ): Promise<{
   confirmed: boolean;
-  method: 'pending' | 'latest' | 'receipt' | 'none';
+  method: 'pending' | 'latest' | 'none';
   blockNumber: number | null;
 }> => {
   if (spoofTransactions) {
@@ -289,41 +336,31 @@ export const checkLaneConfirmation = async (
 
     return {
       confirmed: true,
-      method: lane === 'flashblocks' ? flashblocksBlockTag : 'receipt',
+      method: BLOCK_TAG_BY_LANE[lane],
       blockNumber: null,
     };
   }
 
-  if (lane === 'flashblocks') {
-    const pendingBlock = (await publicClient.request({
-      method: 'eth_getBlockByNumber',
-      params: [flashblocksBlockTag, false],
-    })) as RpcPendingBlock | null;
+  const blockTag = BLOCK_TAG_BY_LANE[lane];
+  const block = (await publicClient.request({
+    method: 'eth_getBlockByNumber',
+    params: [blockTag, false],
+  })) as RpcPendingBlock | null;
 
-    const inPendingBlock =
-      pendingBlock?.transactions?.some(
-        (pendingTxHash) =>
-          pendingTxHash.toLowerCase() === txHash.toLowerCase(),
-      ) ?? false;
+  const inBlock =
+    block?.transactions?.some(
+      (candidateTxHash) =>
+        candidateTxHash.toLowerCase() === txHash.toLowerCase(),
+    ) ?? false;
 
-    if (inPendingBlock) {
-      return {
-        confirmed: true,
-        method: flashblocksBlockTag,
-        blockNumber:
-          pendingBlock?.number !== null && pendingBlock?.number !== undefined
-            ? hexToNumber(pendingBlock.number)
-            : null,
-      };
-    }
-  }
-
-  const receipt = await getTransactionReceipt(txHash);
-  if (receipt?.blockNumber) {
+  if (inBlock) {
     return {
       confirmed: true,
-      method: 'receipt',
-      blockNumber: hexToNumber(receipt.blockNumber),
+      method: blockTag,
+      blockNumber:
+        block?.number !== null && block?.number !== undefined
+          ? hexToNumber(block.number)
+          : null,
     };
   }
 

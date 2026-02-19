@@ -5,7 +5,7 @@
 This project is configured as a Flashblocks confirmation demo. The `/home` screen runs two parallel transaction loops:
 
 - Top lane: flashblocks-style confirmation based on `eth_getBlockByNumber("pending", false)`.
-- Bottom lane: normal confirmation based on first non-null `eth_getTransactionReceipt`.
+- Bottom lane: normal confirmation based on `eth_getBlockByNumber("latest", false)`.
 
 ## Getting Started
 
@@ -16,13 +16,12 @@ This project is configured as a Flashblocks confirmation demo. The `/home` scree
 5. `NEXT_PUBLIC_APP_ID`
 6. `DEMO_PRIVATE_KEY` (one funded mainnet demo wallet shared by both lanes)
 7. RPC defaults are Worldchain mainnet (`https://worldchain.worldcoin.org`, `wss://worldchain.worldcoin.org:8546`)
-8. Set `FLASHBLOCKS_BLOCK_TAG` (`pending` by default, or `latest` as fallback)
-9. (Optional for local laptop testing) set `DEMO_SPOOF_TRANSACTIONS='true'` (spoof timings are fixed at `800ms` for flashblocks and `2500ms` for normal lane)
-10. Run `npm run dev`
-11. Run `ngrok http 3000`
-12. Set `AUTH_URL` to your ngrok URL
-13. Add your domain to `allowedDevOrigins` in `next.config.ts`
-14. Verify the app URL mapping in developer.worldcoin.org
+8. (Optional for local laptop testing) set `DEMO_SPOOF_TRANSACTIONS='true'` (spoof timings are fixed at `800ms` for flashblocks and `2500ms` for normal lane)
+9. Run `npm run dev`
+10. Run `ngrok http 3000`
+11. Set `AUTH_URL` to your ngrok URL
+12. Add your domain to `allowedDevOrigins` in `next.config.ts`
+13. Verify the app URL mapping in developer.worldcoin.org
 
 ## Authentication
 

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'Flashblocks Confirmation Demo',
-  description: 'Mini app demo comparing pending-based vs receipt-based confirmations',
+  description: 'Mini app demo comparing pending-based vs latest-based confirmations',
 };
 
 export default async function RootLayout({
